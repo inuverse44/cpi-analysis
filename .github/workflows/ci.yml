@@ -1,0 +1,31 @@
+# 検証（docs/analysis-plan.md §6）を毎回実行する。外部の Action はコミット SHA で固定する。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Install Japanese font for figures
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+      - run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check . && uv run ruff format --check .
+      - name: Tests (V-01〜V-06)
+        run: uv run pytest
+      - name: Pipeline runs end to end
+        run: uv run cpi-analysis
+      - name: Processed data and report are up to date
+        run: git diff --exit-code -- data/processed REPORT.md
